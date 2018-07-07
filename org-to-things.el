@@ -1,0 +1,32 @@
+(require 'seq)
+(require 'org)
+(require 'url-util)
+
+(defun org-to-things-url (title notes when deadline)
+  (let* ((segments '(("title" . title)
+                     ("notes" . notes)
+                     ("when" . when)
+                     ("deadline" . deadline)))
+         (active (seq-filter (lambda (element)
+                               (char-or-string-p (symbol-value (cdr element))))
+                             segments))
+         (tail (apply 'concat (mapcar (lambda (cs)
+                                        (concat (car cs) "="
+                                                (url-encode-url (symbol-value (cdr cs))) "&"))
+                                      active))))
+    (concat "\"things:///add?" tail "\"")))
+
+(defun org-to-things-prep-args (todo)
+  (let ((title (cdr (assoc "ITEM" todo)))
+        (notes nil)
+        (when (cdr (assoc "SCHEDULED" todo)))
+        (deadline (cdr (assoc "DEADLINE" todo))))
+    (mapcar 'symbol-value '(title notes when deadline))))
+
+(defun org-to-things
+    ()
+    (interactive)
+    (let* ((todo (org-entry-properties (point-marker)))
+           (results (org-to-things-prep-args todo))
+           (things-url (apply 'org-to-things-url results)))
+      (shell-command (concat "open " things-url))))
